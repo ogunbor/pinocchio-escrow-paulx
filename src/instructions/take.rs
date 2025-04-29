@@ -46,7 +46,7 @@ pub fn process_take_instruction(accounts: &[AccountInfo], _data: &[u8]) -> Progr
     let escrow_pda = find_program_address(seeds, &crate::id()).0;
     assert_eq!(*escrow.key(), escrow_pda);
 
-    // First leg of the trade: tokens from vault to taker_ata
+    // First leg of the trade: tokens from vault_x to taker_ata
     let bump = [escrow_account.bump.to_le()];
     let seed = [
         Seed::from(b"escrow"),
@@ -83,18 +83,14 @@ pub fn process_take_instruction(accounts: &[AccountInfo], _data: &[u8]) -> Progr
 
     // Close the vault account and return the rent to the maker
     // The maker paid to create this account, so they receive the lamports
-    pinocchio_token::instructions::CloseAccount {
-        account: vault_x,
-        destination: maker,
-        authority: escrow,
+    for (vault, seeds) in [(vault_x, seeds_one), (vault_y, seeds_two)] {
+        pinocchio_token::instructions::CloseAccount {
+            account: vault,
+            destination: maker,
+            authority: escrow,
+        }
+        .invoke_signed(&[seeds])?;
     }
-    .invoke_signed(&[seeds_one])?;
-    pinocchio_token::instructions::CloseAccount {
-        account: vault_y,
-        destination: maker,
-        authority: escrow,
-    }
-    .invoke_signed(&[seeds_two])?;
 
     // Manually close the escrow account and return rent to the maker
     // This completes the trade by cleaning up all accounts
